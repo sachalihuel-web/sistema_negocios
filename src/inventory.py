@@ -1,30 +1,47 @@
-import sqlite3
 import pandas as pd
+
+from src.database import conectar
+
 
 def agregar_producto(nombre, stock, precio):
 
-    conexion = sqlite3.connect("database/negocio.db")
+    conexion = conectar()
+
     cursor = conexion.cursor()
 
-    # Verificar si ya existe
+    # ==========================================
+    # VALIDAR SI EXISTE
+    # ==========================================
+
     cursor.execute("""
     SELECT id
     FROM productos
-    WHERE nombre = ?
+    WHERE nombre = %s
     """, (nombre,))
 
     existe = cursor.fetchone()
 
     if existe:
+
         conexion.close()
+
         return False
 
+    # ==========================================
+    # INSERTAR
+    # ==========================================
+
     cursor.execute("""
-    INSERT INTO productos (nombre, stock, precio)
-    VALUES (?, ?, ?)
+    INSERT INTO productos (
+        nombre,
+        stock,
+        precio
+    )
+    VALUES (%s, %s, %s)
     """, (nombre, stock, precio))
 
     conexion.commit()
+
     conexion.close()
 
     return True
@@ -32,10 +49,15 @@ def agregar_producto(nombre, stock, precio):
 
 def obtener_productos():
 
-    conexion = sqlite3.connect("database/negocio.db")
+    conexion = conectar()
 
-    df = pd.read_sql_query(
-        "SELECT * FROM productos",
+    query = """
+    SELECT *
+    FROM productos
+    """
+
+    df = pd.read_sql(
+        query,
         conexion
     )
 

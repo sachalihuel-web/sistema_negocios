@@ -2,34 +2,28 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+from src.ai_predictions import predecir_ventas_basico
 from src.database import crear_base_datos
 from src.inventory import agregar_producto, obtener_productos
 from src.sales import registrar_venta, obtener_ventas
 from src.reports import generar_reporte_pdf
 from src.auth import login
+from src.demo_data import cargar_demo
+from src.analytics import (
+    calcular_resumen_negocio,
+    generar_insights
+)
 
-# =========================================================
-# 🎨 KPI CARD
-# =========================================================
 
 def card_kpi(titulo, valor, descripcion=""):
 
     with st.container(border=True):
-
         st.caption(titulo)
-
-        st.metric(
-            label="",
-            value=valor
-        )
+        st.metric(label="", value=valor)
 
         if descripcion:
-
             st.caption(descripcion)
 
-# =========================================================
-# ⚙️ CONFIG
-# =========================================================
 
 st.set_page_config(
     page_title="Sistema Inteligente",
@@ -38,10 +32,7 @@ st.set_page_config(
 
 crear_base_datos()
 
-# =========================================================
-# 🔐 LOGIN
-# =========================================================
-
+# LOGIN
 st.sidebar.subheader("🔐 Acceso")
 
 usuario = st.sidebar.text_input("Usuario")
@@ -54,37 +45,18 @@ password = st.sidebar.text_input(
 acceso = login(usuario, password)
 
 if not acceso:
-
     st.info("🔐 Inicie sesión para continuar")
-
     st.stop()
 
-# =========================================================
-# 🏠 HEADER
-# =========================================================
-
+# HEADER
 st.title("📦 Sistema Inteligente para Negocios")
-
 st.subheader("Dashboard Ejecutivo")
 
-# =========================================================
-# 📦 DATOS
-# =========================================================
-
+# DATOS
 productos = obtener_productos()
-
 ventas = obtener_ventas()
 
-total_productos = len(productos)
-
-stock_total = productos["stock"].sum()
-
-valor_inventario = (
-    productos["stock"] * productos["precio"]
-).sum()
-
 if not ventas.empty:
-
     ventas["fecha"] = pd.to_datetime(
         ventas["fecha"],
         errors="coerce"
@@ -96,28 +68,21 @@ if not ventas.empty:
         .astype(str)
     )
 
-    total_ventas = len(ventas)
+# ANALYTICS
+resumen = calcular_resumen_negocio(
+    productos,
+    ventas
+)
 
-    ingresos_totales = ventas["total"].sum()
+total_productos = resumen["total_productos"]
+stock_total = resumen["stock_total"]
+valor_inventario = resumen["valor_inventario"]
+total_ventas = resumen["total_ventas"]
+ingresos_totales = resumen["ingresos_totales"]
+cantidad_vendida_total = resumen["cantidad_vendida_total"]
+ganancia_estimada = resumen["ganancia_estimada"]
 
-    cantidad_vendida_total = ventas["cantidad"].sum()
-
-    ganancia_estimada = ingresos_totales * 0.30
-
-else:
-
-    total_ventas = 0
-
-    ingresos_totales = 0
-
-    cantidad_vendida_total = 0
-
-    ganancia_estimada = 0
-
-# =========================================================
-# 🗂 TABS
-# =========================================================
-
+# TABS
 tab_resumen, tab_inventario, tab_ventas, tab_reportes = st.tabs(
     [
         "📊 Resumen",
@@ -127,18 +92,30 @@ tab_resumen, tab_inventario, tab_ventas, tab_reportes = st.tabs(
     ]
 )
 
-# =========================================================
-# 📊 RESUMEN
-# =========================================================
-
+# RESUMEN
 with tab_resumen:
+
+    st.subheader("🤖 Predicción Inteligente")
+
+    prediccion = predecir_ventas_basico(ventas)
+
+    st.info(prediccion)
+
+    st.subheader("🧠 Insights del Negocio")
+
+    insights = generar_insights(
+        productos,
+        ventas
+    )
+
+    for insight in insights:
+        st.info(insight)
 
     st.subheader("📊 Indicadores del Negocio")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
-
         card_kpi(
             "📦 Productos",
             total_productos,
@@ -146,7 +123,6 @@ with tab_resumen:
         )
 
     with col2:
-
         card_kpi(
             "📦 Stock Total",
             stock_total,
@@ -154,7 +130,6 @@ with tab_resumen:
         )
 
     with col3:
-
         card_kpi(
             "💰 Valor Inventario",
             f"${valor_inventario:,.0f}",
@@ -166,7 +141,6 @@ with tab_resumen:
     v1, v2, v3, v4 = st.columns(4)
 
     with v1:
-
         card_kpi(
             "🧾 Ventas",
             total_ventas,
@@ -174,7 +148,6 @@ with tab_resumen:
         )
 
     with v2:
-
         card_kpi(
             "📦 Vendidos",
             cantidad_vendida_total,
@@ -182,7 +155,6 @@ with tab_resumen:
         )
 
     with v3:
-
         card_kpi(
             "💰 Ingresos",
             f"${ingresos_totales:,.0f}",
@@ -190,16 +162,11 @@ with tab_resumen:
         )
 
     with v4:
-
         card_kpi(
             "📈 Ganancia",
             f"${ganancia_estimada:,.0f}",
             "Margen estimado"
         )
-
-    # =====================================================
-    # 📈 STOCK
-    # =====================================================
 
     if not productos.empty:
 
@@ -219,12 +186,9 @@ with tab_resumen:
 
         st.plotly_chart(
             fig_stock,
-            width="stretch"
+            width="stretch",
+            key="resumen_stock"
         )
-
-    # =====================================================
-    # 📅 VENTAS POR FECHA
-    # =====================================================
 
     if not ventas.empty:
 
@@ -248,12 +212,9 @@ with tab_resumen:
 
         st.plotly_chart(
             fig_fecha,
-            width="stretch"
+            width="stretch",
+            key="resumen_ventas_fecha"
         )
-
-        # =================================================
-        # 📆 VENTAS POR MES
-        # =================================================
 
         st.subheader("📆 Ventas por Mes")
 
@@ -274,13 +235,11 @@ with tab_resumen:
 
         st.plotly_chart(
             fig_mes,
-            width="stretch"
+            width="stretch",
+            key="resumen_ventas_mes"
         )
 
-# =========================================================
-# 📦 INVENTARIO
-# =========================================================
-
+# INVENTARIO
 with tab_inventario:
 
     st.subheader("📦 Registro de Productos")
@@ -302,11 +261,9 @@ with tab_inventario:
     if st.button("Guardar producto"):
 
         if nombre.strip() == "":
-
             st.error("❌ Debe ingresar un nombre")
 
         else:
-
             producto_ok = agregar_producto(
                 nombre,
                 stock,
@@ -314,11 +271,9 @@ with tab_inventario:
             )
 
             if producto_ok:
-
                 st.success("✅ Producto guardado")
 
             else:
-
                 st.error("❌ El producto ya existe")
 
     st.subheader("📋 Inventario")
@@ -341,10 +296,7 @@ with tab_inventario:
             width="stretch"
         )
 
-# =========================================================
-# 💰 VENTAS
-# =========================================================
-
+# VENTAS
 with tab_ventas:
 
     st.subheader("💰 Registrar Venta")
@@ -383,16 +335,10 @@ with tab_ventas:
             )
 
             if venta_ok:
-
                 st.success("✅ Venta registrada")
 
             else:
-
                 st.error("❌ Stock insuficiente")
-
-    # =====================================================
-    # 🧾 HISTORIAL
-    # =====================================================
 
     if not ventas.empty:
 
@@ -402,10 +348,6 @@ with tab_ventas:
             ventas,
             width="stretch"
         )
-
-        # =================================================
-        # 📈 VENTAS PRODUCTO
-        # =================================================
 
         st.subheader("📈 Ventas por Producto")
 
@@ -426,12 +368,9 @@ with tab_ventas:
 
         st.plotly_chart(
             fig_ventas,
-            width="stretch"
+            width="stretch",
+            key="ventas_producto"
         )
-
-        # =================================================
-        # 🔥 TOP PRODUCTOS
-        # =================================================
 
         st.subheader("🔥 Productos Más Vendidos")
 
@@ -458,11 +397,16 @@ with tab_ventas:
                 f"con {cantidad_top} unidades vendidas."
             )
 
-# =========================================================
-# 📤 REPORTES
-# =========================================================
-
+# REPORTES
 with tab_reportes:
+
+    st.subheader("🧪 Datos de Demostración")
+
+    if st.button("Cargar demo"):
+
+        cargar_demo()
+
+        st.success("✅ Demo cargada correctamente")
 
     st.subheader("📤 Exportar Reportes")
 
@@ -490,10 +434,6 @@ with tab_reportes:
         mime="text/csv"
     )
 
-    # =====================================================
-    # 📄 PDF
-    # =====================================================
-
     st.subheader("📄 Reporte Ejecutivo")
 
     if st.button("Generar Reporte PDF"):
@@ -512,9 +452,5 @@ with tab_reportes:
                 file_name="reporte_negocio.pdf",
                 mime="application/pdf"
             )
-
-# =========================================================
-# ✅ FINAL
-# =========================================================
 
 st.success("✅ Sistema iniciado correctamente")

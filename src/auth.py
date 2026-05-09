@@ -1,18 +1,25 @@
 import os
 import streamlit as st
-from dotenv.main import load_dotenv
+from dotenv import load_dotenv
 
 load_dotenv()
 
 
+def obtener_secret(nombre, valor_default=None):
+    try:
+        return st.secrets.get(nombre, valor_default)
+    except Exception:
+        return valor_default
+
+
 def obtener_credenciales():
 
-    usuario = st.secrets.get(
+    usuario = obtener_secret(
         "APP_USER",
         os.getenv("APP_USER")
     )
 
-    password = st.secrets.get(
+    password = obtener_secret(
         "APP_PASSWORD",
         os.getenv("APP_PASSWORD")
     )
@@ -28,3 +35,4 @@ def login(usuario, password):
         return True
 
     return False
+

@@ -1,23 +1,21 @@
-import sqlite3
 import pandas as pd
 from datetime import datetime
+
+from src.database import conectar
 
 
 def registrar_venta(producto, cantidad, precio):
 
     total = cantidad * precio
-
     fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    conexion = sqlite3.connect("database/negocio.db")
-
+    conexion = conectar()
     cursor = conexion.cursor()
 
-    # 🔍 Verificar stock actual
     cursor.execute("""
     SELECT stock
     FROM productos
-    WHERE nombre = ?
+    WHERE nombre = %s
     """, (producto,))
 
     resultado = cursor.fetchone()
@@ -28,26 +26,27 @@ def registrar_venta(producto, cantidad, precio):
 
     stock_actual = resultado[0]
 
-    # ❌ Validar stock
     if cantidad > stock_actual:
         conexion.close()
         return False
 
-    # 💰 Registrar venta
     cursor.execute("""
-    INSERT INTO ventas (producto, cantidad, total, fecha)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO ventas (
+        producto,
+        cantidad,
+        total,
+        fecha
+    )
+    VALUES (%s, %s, %s, %s)
     """, (producto, cantidad, total, fecha))
 
-    # 📦 Actualizar stock
     cursor.execute("""
     UPDATE productos
-    SET stock = stock - ?
-    WHERE nombre = ?
+    SET stock = stock - %s
+    WHERE nombre = %s
     """, (cantidad, producto))
 
     conexion.commit()
-
     conexion.close()
 
     return True
@@ -55,10 +54,15 @@ def registrar_venta(producto, cantidad, precio):
 
 def obtener_ventas():
 
-    conexion = sqlite3.connect("database/negocio.db")
+    conexion = conectar()
 
-    df = pd.read_sql_query(
-        "SELECT * FROM ventas",
+    query = """
+    SELECT *
+    FROM ventas
+    """
+
+    df = pd.read_sql(
+        query,
         conexion
     )
 
