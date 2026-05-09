@@ -1,12 +1,15 @@
+import os
 import sqlite3
 
+
 def crear_base_datos():
+
+    os.makedirs("database", exist_ok=True)
 
     conexion = sqlite3.connect("database/negocio.db")
 
     cursor = conexion.cursor()
 
-    # 📦 Tabla productos
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS productos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -16,14 +19,14 @@ def crear_base_datos():
     )
     """)
 
-    # 💰 Tabla ventas
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS ventas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         producto TEXT,
         cantidad INTEGER,
         total REAL,
-        fecha TEXT    )
+        fecha TEXT
+    )
     """)
 
     conexion.commit()
